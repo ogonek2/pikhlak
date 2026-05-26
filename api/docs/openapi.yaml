@@ -1,0 +1,1395 @@
+openapi: 3.1.0
+info:
+  title: Pikhlak API
+  description: |
+    Headless API для Telegram AI-бота автосервиса Pikhlak.
+
+    - **Admin API** — JWT Bearer для Vue Admin Panel
+    - **Bot API** — HMAC подпись для lightweight Telegram service
+    - **Webhooks** — Telegram → Laravel (ingress)
+  version: 1.0.0
+  contact:
+    name: Pikhlak Platform
+servers:
+  - url: https://api.pikhlak.local/api/v1
+    description: Production
+  - url: http://localhost:8000/api/v1
+    description: Local development
+
+tags:
+  - name: Auth
+  - name: Dashboard
+  - name: Chats
+  - name: CRM
+  - name: Cars
+  - name: Calculator
+  - name: AI
+  - name: Analytics
+  - name: Referrals
+  - name: Settings
+  - name: Media
+  - name: Audit
+  - name: Bot
+  - name: Webhooks
+
+security:
+  - BearerAuth: []
+
+paths:
+  # ─── Auth ───────────────────────────────────────────────────────────
+  /admin/auth/login:
+    post:
+      tags: [Auth]
+      summary: Admin login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Tokens issued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthTokenResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /admin/auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Refresh access token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh_token]
+              properties:
+                refresh_token:
+                  type: string
+      responses:
+        '200':
+          description: New tokens
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthTokenResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /admin/auth/logout:
+    post:
+      tags: [Auth]
+      summary: Revoke refresh token
+      responses:
+        '204':
+          description: Logged out
+
+  /admin/auth/me:
+    get:
+      tags: [Auth]
+      summary: Current admin user
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+              examples:
+                user:
+                  value:
+                    data:
+                      id: 1
+                      uuid: 550e8400-e29b-41d4-a716-446655440000
+                      name: Admin
+                      email: admin@pikhlak.local
+                      roles: [admin]
+
+  # ─── Dashboard ──────────────────────────────────────────────────────
+  /admin/dashboard/overview:
+    get:
+      tags: [Dashboard]
+      summary: Dashboard KPI overview
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - name: period
+          in: query
+          schema:
+            type: string
+            enum: [today, week, month]
+            default: week
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/DashboardOverview'
+
+  # ─── Chats ──────────────────────────────────────────────────────────
+  /admin/chats:
+    get:
+      tags: [Chats]
+      summary: List chats
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: has_lead
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatListResponse'
+
+  /admin/chats/{chatId}:
+    get:
+      tags: [Chats]
+      summary: Get chat details
+      parameters:
+        - $ref: '#/components/parameters/ChatId'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /admin/chats/{chatId}/messages:
+    get:
+      tags: [Chats]
+      summary: Chat message history
+      parameters:
+        - $ref: '#/components/parameters/ChatId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageListResponse'
+
+  /admin/chats/{chatId}/reply:
+    post:
+      tags: [Chats]
+      summary: Send manual reply from admin
+      parameters:
+        - $ref: '#/components/parameters/ChatId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminReplyRequest'
+      responses:
+        '202':
+          description: Reply queued for delivery
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BotActionResponse'
+
+  # ─── CRM ────────────────────────────────────────────────────────────
+  /admin/leads:
+    get:
+      tags: [CRM]
+      summary: List leads
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+        - name: status_id
+          in: query
+          schema:
+            type: integer
+        - name: manager_id
+          in: query
+          schema:
+            type: integer
+        - name: min_warming_score
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 100
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeadListResponse'
+    post:
+      tags: [CRM]
+      summary: Create lead manually
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LeadCreateRequest'
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeadResponse'
+
+  /admin/leads/{leadId}:
+    get:
+      tags: [CRM]
+      parameters:
+        - $ref: '#/components/parameters/LeadId'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeadResponse'
+    patch:
+      tags: [CRM]
+      parameters:
+        - $ref: '#/components/parameters/LeadId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LeadUpdateRequest'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeadResponse'
+
+  /admin/leads/{leadId}/notes:
+    post:
+      tags: [CRM]
+      parameters:
+        - $ref: '#/components/parameters/LeadId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [body]
+              properties:
+                body:
+                  type: string
+      responses:
+        '201':
+          description: Note created
+
+  /admin/lead-statuses:
+    get:
+      tags: [CRM]
+      summary: Pipeline statuses
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeadStatusListResponse'
+
+  # ─── Cars ───────────────────────────────────────────────────────────
+  /admin/cars:
+    get:
+      tags: [Cars]
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - $ref: '#/components/parameters/Page'
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [draft, published, reserved, sold, archived]
+        - name: make
+          in: query
+          schema:
+            type: string
+        - name: model
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CarListResponse'
+    post:
+      tags: [Cars]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CarCreateRequest'
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CarResponse'
+
+  /admin/cars/{carId}:
+    get:
+      tags: [Cars]
+      parameters:
+        - $ref: '#/components/parameters/CarId'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CarResponse'
+    patch:
+      tags: [Cars]
+      parameters:
+        - $ref: '#/components/parameters/CarId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CarUpdateRequest'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CarResponse'
+    delete:
+      tags: [Cars]
+      parameters:
+        - $ref: '#/components/parameters/CarId'
+      responses:
+        '204':
+          description: Car archived
+
+  /admin/cars/import:
+    post:
+      tags: [Cars]
+      summary: Start cars import job
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                source:
+                  type: string
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      job_id:
+                        type: integer
+
+  # ─── Calculator ─────────────────────────────────────────────────────
+  /admin/calculator/profiles:
+    get:
+      tags: [Calculator]
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+      responses:
+        '200':
+          description: Calculator profiles list
+    post:
+      tags: [Calculator]
+      responses:
+        '201':
+          description: Profile created
+
+  /admin/calculator/simulate:
+    post:
+      tags: [Calculator]
+      summary: Simulate calculation
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CalculatorSimulateRequest'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalculatorSimulateResponse'
+
+  # ─── AI CMS ─────────────────────────────────────────────────────────
+  /admin/ai/profiles:
+    get:
+      tags: [AI]
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+      responses:
+        '200':
+          description: AI profiles
+    post:
+      tags: [AI]
+      responses:
+        '201':
+          description: Profile created
+
+  /admin/ai/profiles/{profileId}/prompts:
+    get:
+      tags: [AI]
+      parameters:
+        - name: profileId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Prompt versions
+    post:
+      tags: [AI]
+      summary: Create new prompt version
+      responses:
+        '201':
+          description: Draft prompt created
+
+  /admin/ai/profiles/{profileId}/prompts/{version}/publish:
+    post:
+      tags: [AI]
+      summary: Publish prompt version
+      responses:
+        '200':
+          description: Published
+
+  /admin/ai/faq:
+    get:
+      tags: [AI]
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+      responses:
+        '200':
+          description: FAQ items
+    post:
+      tags: [AI]
+      responses:
+        '201':
+          description: FAQ created
+
+  /admin/ai/playground:
+    post:
+      tags: [AI]
+      summary: Test AI response in sandbox
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AiPlaygroundRequest'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AiPlaygroundResponse'
+
+  # ─── Analytics ──────────────────────────────────────────────────────
+  /admin/analytics/dialogs:
+    get:
+      tags: [Analytics]
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Dialog analytics
+
+  /admin/analytics/ai-effectiveness:
+    get:
+      tags: [Analytics]
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+      responses:
+        '200':
+          description: AI KPI
+
+  /admin/analytics/hot-leads:
+    get:
+      tags: [Analytics]
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+      responses:
+        '200':
+          description: Hot leads report
+
+  # ─── Referrals ──────────────────────────────────────────────────────
+  /admin/referrals/campaigns:
+    get:
+      tags: [Referrals]
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+      responses:
+        '200':
+          description: Campaigns list
+    post:
+      tags: [Referrals]
+      responses:
+        '201':
+          description: Campaign created
+
+  /admin/referrals/links:
+    get:
+      tags: [Referrals]
+      responses:
+        '200':
+          description: Referral links
+    post:
+      tags: [Referrals]
+      responses:
+        '201':
+          description: Link created
+
+  # ─── Settings & Audit ───────────────────────────────────────────────
+  /admin/settings:
+    get:
+      tags: [Settings]
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+      responses:
+        '200':
+          description: Project settings
+    patch:
+      tags: [Settings]
+      responses:
+        '200':
+          description: Settings updated
+
+  /admin/bots:
+    get:
+      tags: [Settings]
+      summary: List Telegram bots
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+      responses:
+        '200':
+          description: Bots list
+
+  /admin/media/presign:
+    post:
+      tags: [Media]
+      summary: Get presigned upload URL
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [filename, mime_type]
+              properties:
+                filename:
+                  type: string
+                mime_type:
+                  type: string
+                context:
+                  type: string
+                  enum: [car, avatar, import]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      upload_url:
+                        type: string
+                        format: uri
+                      path:
+                        type: string
+
+  /admin/audit-logs:
+    get:
+      tags: [Audit]
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - $ref: '#/components/parameters/Page'
+      responses:
+        '200':
+          description: Audit trail
+
+  # ─── Bot API (M2M) ──────────────────────────────────────────────────
+  /bot/updates:
+    post:
+      tags: [Bot]
+      summary: Submit Telegram update for processing
+      security:
+        - BotHmacAuth: []
+      parameters:
+        - name: X-Bot-Id
+          in: header
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: X-Bot-Timestamp
+          in: header
+          required: true
+          schema:
+            type: integer
+            description: Unix timestamp
+        - name: X-Bot-Signature
+          in: header
+          required: true
+          schema:
+            type: string
+            description: HMAC-SHA256 hex of "{timestamp}.{body}"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BotUpdateRequest'
+      responses:
+        '200':
+          description: Actions to execute on Telegram
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BotActionResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: Duplicate update (idempotent)
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /bot/updates/{updateLogId}/ack:
+    post:
+      tags: [Bot]
+      summary: Acknowledge successful delivery of bot actions
+      security:
+        - BotHmacAuth: []
+      parameters:
+        - name: updateLogId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                delivered_actions:
+                  type: array
+                  items:
+                    type: integer
+                errors:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      action_index:
+                        type: integer
+                      error:
+                        type: string
+      responses:
+        '204':
+          description: Acknowledged
+
+  /bot/chats/{telegramChatId}/state:
+    get:
+      tags: [Bot]
+      summary: Pull chat UI state for keyboard sync
+      security:
+        - BotHmacAuth: []
+      parameters:
+        - name: telegramChatId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: X-Bot-Id
+          in: header
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      state_version:
+                        type: integer
+                      state:
+                        type: object
+                        additionalProperties: true
+
+  /bot/health-config:
+    get:
+      tags: [Bot]
+      summary: Bot service health and config version
+      security:
+        - BotHmacAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      api_version:
+                        type: string
+                      keyboards_version:
+                        type: integer
+                      rate_limit_per_minute:
+                        type: integer
+
+  # ─── Webhooks ───────────────────────────────────────────────────────
+  /webhooks/telegram/{botUuid}:
+    post:
+      tags: [Webhooks]
+      summary: Telegram webhook ingress (Laravel primary)
+      security: []
+      parameters:
+        - name: botUuid
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: X-Telegram-Bot-Api-Secret-Token
+          in: header
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Raw Telegram Update object
+              additionalProperties: true
+      responses:
+        '200':
+          description: Update accepted (async processing)
+        '401':
+          description: Invalid secret token
+        '409':
+          description: Duplicate update
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Admin SPA access token
+    BotHmacAuth:
+      type: apiKey
+      in: header
+      name: X-Bot-Signature
+      description: HMAC-SHA256 with bot API secret
+
+  parameters:
+    ProjectId:
+      name: X-Project-Id
+      in: header
+      required: true
+      schema:
+        type: integer
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    PerPage:
+      name: per_page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    ChatId:
+      name: chatId
+      in: path
+      required: true
+      schema:
+        type: integer
+    LeadId:
+      name: leadId
+      in: path
+      required: true
+      schema:
+        type: integer
+    CarId:
+      name: carId
+      in: path
+      required: true
+      schema:
+        type: integer
+
+  responses:
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    ValidationError:
+      description: Validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    RateLimited:
+      description: Rate limit exceeded
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+
+  schemas:
+    Envelope:
+      type: object
+      required: [data]
+      properties:
+        data: {}
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+
+    ErrorEnvelope:
+      type: object
+      properties:
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+              field:
+                type: string
+
+    PaginationMeta:
+      type: object
+      properties:
+        current_page:
+          type: integer
+        per_page:
+          type: integer
+        total:
+          type: integer
+        last_page:
+          type: integer
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+
+    AuthTokenResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            access_token:
+              type: string
+            token_type:
+              type: string
+              example: Bearer
+            expires_in:
+              type: integer
+              example: 3600
+            refresh_token:
+              type: string
+
+    DashboardOverview:
+      type: object
+      properties:
+        leads_total:
+          type: integer
+        leads_hot:
+          type: integer
+        chats_active:
+          type: integer
+        ai_replies_today:
+          type: integer
+        conversion_rate:
+          type: number
+          format: float
+
+    Chat:
+      type: object
+      properties:
+        id:
+          type: integer
+        telegram_chat_id:
+          type: integer
+          format: int64
+        type:
+          type: string
+        state_version:
+          type: integer
+        last_activity_at:
+          type: string
+          format: date-time
+        telegram_user:
+          $ref: '#/components/schemas/TelegramUser'
+        lead:
+          $ref: '#/components/schemas/LeadSummary'
+
+    TelegramUser:
+      type: object
+      properties:
+        id:
+          type: integer
+        telegram_id:
+          type: integer
+          format: int64
+        username:
+          type: string
+        first_name:
+          type: string
+
+    Message:
+      type: object
+      properties:
+        id:
+          type: integer
+        direction:
+          type: string
+          enum: [inbound, outbound]
+        type:
+          type: string
+        body:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    Lead:
+      type: object
+      properties:
+        id:
+          type: integer
+        uuid:
+          type: string
+          format: uuid
+        status_id:
+          type: integer
+        warming_score:
+          type: integer
+        source:
+          type: string
+        assigned_manager_id:
+          type: integer
+          nullable: true
+        metadata:
+          type: object
+          additionalProperties: true
+
+    LeadSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+        uuid:
+          type: string
+          format: uuid
+        warming_score:
+          type: integer
+
+    Car:
+      type: object
+      properties:
+        id:
+          type: integer
+        uuid:
+          type: string
+          format: uuid
+        make:
+          type: string
+        model:
+          type: string
+        year:
+          type: integer
+        price:
+          type: number
+        currency:
+          type: string
+        status:
+          type: string
+        specs:
+          type: object
+          additionalProperties: true
+
+    ChatListResponse:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/Chat'
+
+    ChatResponse:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/Chat'
+
+    MessageListResponse:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/Message'
+
+    LeadListResponse:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/Lead'
+
+    LeadResponse:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/Lead'
+
+    LeadStatusListResponse:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  code:
+                    type: string
+                  name:
+                    type: string
+                  sort:
+                    type: integer
+
+    CarListResponse:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/Car'
+
+    CarResponse:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/Car'
+
+    LeadCreateRequest:
+      type: object
+      required: [project_id]
+      properties:
+        project_id:
+          type: integer
+        chat_id:
+          type: integer
+        status_id:
+          type: integer
+        source:
+          type: string
+
+    LeadUpdateRequest:
+      type: object
+      properties:
+        status_id:
+          type: integer
+        assigned_manager_id:
+          type: integer
+        warming_score:
+          type: integer
+        metadata:
+          type: object
+
+    CarCreateRequest:
+      type: object
+      required: [make, model]
+      properties:
+        make:
+          type: string
+        model:
+          type: string
+        year:
+          type: integer
+        price:
+          type: number
+        specs:
+          type: object
+
+    CarUpdateRequest:
+      type: object
+      properties:
+        status:
+          type: string
+        price:
+          type: number
+        specs:
+          type: object
+
+    AdminReplyRequest:
+      type: object
+      required: [text]
+      properties:
+        text:
+          type: string
+        reply_markup:
+          $ref: '#/components/schemas/TelegramReplyMarkup'
+
+    CalculatorSimulateRequest:
+      type: object
+      required: [profile_id, input]
+      properties:
+        profile_id:
+          type: integer
+        input:
+          type: object
+          additionalProperties: true
+
+    CalculatorSimulateResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            output:
+              type: object
+              additionalProperties: true
+            breakdown:
+              type: array
+              items:
+                type: object
+                properties:
+                  code:
+                    type: string
+                  value:
+                    type: number
+
+    AiPlaygroundRequest:
+      type: object
+      required: [profile_id, message]
+      properties:
+        profile_id:
+          type: integer
+        message:
+          type: string
+        context:
+          type: object
+
+    AiPlaygroundResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            reply:
+              type: string
+            tokens_in:
+              type: integer
+            tokens_out:
+              type: integer
+            blocked:
+              type: boolean
+
+    BotUpdateRequest:
+      type: object
+      required: [update]
+      properties:
+        update:
+          type: object
+          description: Raw Telegram Update
+          additionalProperties: true
+        received_at:
+          type: string
+          format: date-time
+
+    BotActionResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [update_log_id, actions, state_version]
+          properties:
+            update_log_id:
+              type: integer
+            state_version:
+              type: integer
+            actions:
+              type: array
+              items:
+                $ref: '#/components/schemas/BotAction'
+
+    BotAction:
+      type: object
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum:
+            - send_message
+            - edit_message
+            - delete_message
+            - send_media
+            - answer_callback
+            - typing
+            - delay
+        chat_id:
+          type: integer
+          format: int64
+        message_id:
+          type: integer
+        text:
+          type: string
+        parse_mode:
+          type: string
+          enum: [HTML, Markdown, MarkdownV2]
+        reply_markup:
+          $ref: '#/components/schemas/TelegramReplyMarkup'
+        media:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+                enum: [photo, document, video]
+              url:
+                type: string
+                format: uri
+              caption:
+                type: string
+        callback_query_id:
+          type: string
+        duration:
+          type: integer
+          description: Seconds (typing/delay)
+
+    TelegramReplyMarkup:
+      type: object
+      properties:
+        inline_keyboard:
+          type: array
+          items:
+            type: array
+            items:
+              type: object
+              properties:
+                text:
+                  type: string
+                callback_data:
+                  type: string
+                url:
+                  type: string
+        keyboard:
+          type: array
+          items:
+            type: array
+            items:
+              type: object
+              properties:
+                text:
+                  type: string
+        resize_keyboard:
+          type: boolean
+        one_time_keyboard:
+          type: boolean
