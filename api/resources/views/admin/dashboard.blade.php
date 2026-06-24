@@ -4,8 +4,8 @@
 
 @section('content')
 <div class="mb-8">
-    <h1 class="text-2xl font-bold text-white">Дашборд</h1>
-    <p class="text-slate-500">Управление Telegram-ботом Pikhlak Auto</p>
+    <h1 class="text-2xl font-bold text-white">Дашборд прогрева</h1>
+    <p class="text-slate-500">Telegram-бот для лидов и ИИ-консультант · <a href="{{ route('admin.client.dashboard') }}" class="text-sky-400 hover:underline">перейти к клиентскому боту →</a></p>
 </div>
 
 @if (($stats['operator_requests'] ?? 0) > 0)

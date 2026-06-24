@@ -7,6 +7,7 @@ use App\Models\Chat;
 use App\Models\Lead;
 use App\Models\Project;
 use App\Services\AI\SettingHelper;
+use App\Services\Bot\BotRegistry;
 use App\Services\Chat\ChatStateService;
 use App\Services\Chat\OperatorRequestService;
 use App\Services\Telegram\TelegramOutboundService;
@@ -27,7 +28,9 @@ class ChatController extends Controller
         $project = $this->project($request);
 
         $chatsQuery = Chat::query()
-            ->whereHas('bot', fn ($q) => $q->where('project_id', $project->id))
+            ->whereHas('bot', fn ($q) => $q
+                ->where('project_id', $project->id)
+                ->where('type', BotRegistry::TYPE_WARMING))
             ->with(['telegramUser', 'lead.status'])
             ->withCount('messages')
             ->withMax('messages', 'created_at');
@@ -53,7 +56,9 @@ class ChatController extends Controller
         $messages = collect();
         if ($chatId = $request->integer('chat')) {
             $selected = Chat::query()
-                ->whereHas('bot', fn ($bq) => $bq->where('project_id', $project->id))
+                ->whereHas('bot', fn ($bq) => $bq
+                    ->where('project_id', $project->id)
+                    ->where('type', BotRegistry::TYPE_WARMING))
                 ->with(['telegramUser', 'bot', 'lead.status'])
                 ->find($chatId);
             if ($selected) {
@@ -136,7 +141,7 @@ class ChatController extends Controller
     private function ensureProjectChat(Request $request, Chat $chat): void
     {
         $project = $this->project($request);
-        if ($chat->bot?->project_id !== $project->id) {
+        if ($chat->bot?->project_id !== $project->id || $chat->bot?->type !== BotRegistry::TYPE_WARMING) {
             abort(404);
         }
     }

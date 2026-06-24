@@ -4,8 +4,8 @@
 
 @section('content')
 <div class="mb-8">
-    <h1 class="text-2xl font-bold">Настройки бота</h1>
-    <p class="text-slate-500">Токен, webhook, статус</p>
+    <h1 class="text-2xl font-bold">Бот прогрева лидов</h1>
+    <p class="text-slate-500">Токен из .env · webhook · статус</p>
 </div>
 
 <form method="POST" action="{{ route('admin.bot.update') }}" class="max-w-2xl space-y-6 rounded-xl border border-slate-800 bg-slate-900 p-6">

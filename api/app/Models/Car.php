@@ -65,6 +65,23 @@ class Car extends Model
         return number_format((float) $this->price, 0, '.', ' ').' '.$this->currency;
     }
 
+    /** Пробег в км из specs (поддерживает «42 000 km», 42000 и т.п.). */
+    public function mileageKm(): ?int
+    {
+        $raw = $this->specs['mileage'] ?? null;
+        if ($raw === null || $raw === '') {
+            return null;
+        }
+
+        if (is_int($raw) || is_float($raw)) {
+            return max(0, (int) $raw);
+        }
+
+        $digits = preg_replace('/\D/', '', (string) $raw);
+
+        return $digits !== '' ? (int) $digits : null;
+    }
+
     public function primaryPhotoUrl(): ?string
     {
         $media = $this->relationLoaded('media')

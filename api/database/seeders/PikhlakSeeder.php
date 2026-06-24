@@ -66,9 +66,10 @@ class PikhlakSeeder extends Seeder
         );
 
         $bot = Bot::query()->firstOrCreate(
-            ['project_id' => $project->id, 'name' => 'Pikhlak Main Bot'],
+            ['project_id' => $project->id, 'type' => 'warming'],
             [
                 'uuid' => (string) Str::uuid(),
+                'name' => 'Pikhlak Warming Bot',
                 'mode' => 'webhook',
                 'webhook_secret' => 'pikhlak-webhook-secret-dev',
                 'api_key_hash' => hash('sha256', $botSecret),

@@ -162,8 +162,15 @@ class ReferralLinkController extends Controller
 
     private function projectBot(Project $project): Bot
     {
-        $bot = Bot::query()->where('project_id', $project->id)->where('is_active', true)->first()
-            ?? Bot::query()->where('project_id', $project->id)->first();
+        $bot = Bot::query()
+            ->where('project_id', $project->id)
+            ->where('type', \App\Services\Bot\BotRegistry::TYPE_WARMING)
+            ->where('is_active', true)
+            ->first()
+            ?? Bot::query()
+                ->where('project_id', $project->id)
+                ->where('type', \App\Services\Bot\BotRegistry::TYPE_WARMING)
+                ->first();
 
         if (! $bot) {
             abort(422, 'Бот Pikhlak для проекта не найден.');

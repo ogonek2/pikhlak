@@ -1,5 +1,15 @@
 <?php
 
+use App\Http\Controllers\Admin\ClientPortal\ClientBotController;
+use App\Http\Controllers\Admin\ClientPortal\ClientBotNotificationController;
+use App\Http\Controllers\Admin\ClientPortal\ClientManagerRequestController;
+use App\Http\Controllers\Admin\ClientPortal\CrmSyncController;
+use App\Http\Controllers\Admin\ClientPortal\ClientDashboardController;
+use App\Http\Controllers\Admin\ClientPortal\RentBuyoutCalculatorController;
+use App\Http\Controllers\Admin\ClientPortal\RentalClientApiController;
+use App\Http\Controllers\Admin\ClientPortal\RentalClientController;
+use App\Http\Controllers\Admin\ClientPortal\RentalClientNestedController;
+use App\Http\Controllers\Admin\ClientPortal\TrafficChannelController;
 use App\Http\Controllers\Admin\AiControlController;
 use App\Http\Controllers\Admin\CarController;
 use App\Http\Controllers\Admin\Auth\LoginController;
@@ -91,4 +101,50 @@ Route::middleware(['auth', 'admin.project'])->group(function (): void {
     Route::post('chats/{chat}/message', [ChatController::class, 'sendMessage'])->name('chats.message');
     Route::post('chats/{chat}/mode', [ChatController::class, 'setMode'])->name('chats.mode');
     Route::post('chats/{chat}/operator-ack', [ChatController::class, 'acknowledgeOperator'])->name('chats.operator-ack');
+
+    Route::prefix('client')->name('client.')->group(function (): void {
+        Route::get('/', [ClientDashboardController::class, 'index'])->name('dashboard');
+        Route::get('bot', [ClientBotController::class, 'show'])->name('bot.show');
+        Route::put('bot', [ClientBotController::class, 'update'])->name('bot.update');
+        Route::put('bot/notifications', [ClientBotNotificationController::class, 'update'])->name('bot.notifications.update');
+        Route::get('bot/manager-requests', [ClientManagerRequestController::class, 'index'])->name('bot.manager-requests');
+        Route::put('bot/manager-settings', [ClientManagerRequestController::class, 'updateSettings'])->name('bot.manager-settings');
+        Route::post('bot/manager-requests/{managerRequest}/in-progress', [ClientManagerRequestController::class, 'inProgress'])->name('bot.manager-requests.in-progress');
+        Route::post('bot/manager-requests/{managerRequest}/resolve', [ClientManagerRequestController::class, 'resolve'])->name('bot.manager-requests.resolve');
+        Route::post('bot/manager-requests/{managerRequest}/cancel', [ClientManagerRequestController::class, 'cancel'])->name('bot.manager-requests.cancel');
+        Route::post('crm/sync', [CrmSyncController::class, 'store'])->name('crm.sync');
+        Route::get('traffic', [TrafficChannelController::class, 'index'])->name('traffic.index');
+        Route::post('traffic/sync-all', [TrafficChannelController::class, 'syncAll'])->name('traffic.sync-all');
+        Route::get('traffic/{channel}', [TrafficChannelController::class, 'show'])->name('traffic.show');
+        Route::put('traffic/{channel}/credentials', [TrafficChannelController::class, 'updateCredentials'])->name('traffic.credentials');
+        Route::post('traffic/{channel}/sync', [TrafficChannelController::class, 'sync'])->name('traffic.sync');
+        Route::get('clients', [RentalClientController::class, 'index'])->name('clients.index');
+        Route::get('clients/create', [RentalClientController::class, 'create'])->name('clients.create');
+        Route::post('clients/calculator-preview', [RentBuyoutCalculatorController::class, 'preview'])->name('clients.calculator-preview');
+        Route::post('clients', [RentalClientController::class, 'store'])->name('clients.store');
+        Route::get('clients/{client}', [RentalClientController::class, 'show'])->name('clients.show');
+        Route::get('clients/{client}/edit', [RentalClientController::class, 'edit'])->name('clients.edit');
+        Route::put('clients/{client}', [RentalClientController::class, 'update'])->name('clients.update');
+        Route::post('clients/{client}/claim-telegram', [RentalClientController::class, 'claimTelegram'])->name('clients.claim-telegram');
+        Route::get('clients/{client}/profile-data', [RentalClientApiController::class, 'show'])->name('clients.profile-data');
+
+        Route::post('clients/{client}/phones', [RentalClientNestedController::class, 'storePhone'])->name('clients.phones.store');
+        Route::delete('clients/{client}/phones/{phone}', [RentalClientNestedController::class, 'destroyPhone'])->name('clients.phones.destroy');
+        Route::post('clients/{client}/vehicles', [RentalClientNestedController::class, 'storeVehicle'])->name('clients.vehicles.store');
+        Route::put('clients/{client}/vehicles/{vehicle}', [RentalClientNestedController::class, 'updateVehicle'])->name('clients.vehicles.update');
+        Route::delete('clients/{client}/vehicles/{vehicle}', [RentalClientNestedController::class, 'destroyVehicle'])->name('clients.vehicles.destroy');
+        Route::post('clients/{client}/contracts', [RentalClientNestedController::class, 'storeContract'])->name('clients.contracts.store');
+        Route::put('clients/{client}/contracts/{contract}', [RentalClientNestedController::class, 'updateContract'])->name('clients.contracts.update');
+        Route::delete('clients/{client}/contracts/{contract}', [RentalClientNestedController::class, 'destroyContract'])->name('clients.contracts.destroy');
+        Route::post('clients/{client}/payments', [RentalClientNestedController::class, 'storePayment'])->name('clients.payments.store');
+        Route::put('clients/{client}/payments/{payment}', [RentalClientNestedController::class, 'updatePayment'])->name('clients.payments.update');
+        Route::delete('clients/{client}/payments/{payment}', [RentalClientNestedController::class, 'destroyPayment'])->name('clients.payments.destroy');
+        Route::post('clients/{client}/payments/{payment}/paid', [RentalClientNestedController::class, 'markPaymentPaid'])->name('clients.payments.paid');
+        Route::post('clients/{client}/insurances', [RentalClientNestedController::class, 'storeInsurance'])->name('clients.insurances.store');
+        Route::put('clients/{client}/insurances/{insurance}', [RentalClientNestedController::class, 'updateInsurance'])->name('clients.insurances.update');
+        Route::delete('clients/{client}/insurances/{insurance}', [RentalClientNestedController::class, 'destroyInsurance'])->name('clients.insurances.destroy');
+        Route::post('clients/{client}/maintenances', [RentalClientNestedController::class, 'storeMaintenance'])->name('clients.maintenances.store');
+        Route::put('clients/{client}/maintenances/{maintenance}', [RentalClientNestedController::class, 'updateMaintenance'])->name('clients.maintenances.update');
+        Route::delete('clients/{client}/maintenances/{maintenance}', [RentalClientNestedController::class, 'destroyMaintenance'])->name('clients.maintenances.destroy');
+    });
 });

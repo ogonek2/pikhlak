@@ -9,6 +9,10 @@ function sleep(ms: number): Promise<void> {
 function buildReplyMarkup(markup?: Record<string, unknown>) {
   if (!markup) return undefined;
 
+  if (markup.remove_keyboard) {
+    return { remove_keyboard: true };
+  }
+
   if (Array.isArray(markup.inline_keyboard)) {
     return InlineKeyboard.from(
       (markup.inline_keyboard as Array<Array<{ text: string; callback_data?: string; url?: string }>>).map(
@@ -22,8 +26,15 @@ function buildReplyMarkup(markup?: Record<string, unknown>) {
   }
 
   if (Array.isArray(markup.keyboard)) {
+    type KeyBtn = { text: string; request_contact?: boolean; request_location?: boolean };
     const keyboard = Keyboard.from(
-      (markup.keyboard as Array<Array<{ text: string }>>).map((row) => row.map((b) => b.text)),
+      (markup.keyboard as Array<Array<KeyBtn>>).map((row) =>
+        row.map((btn) => {
+          if (btn.request_contact) return Keyboard.requestContact(btn.text);
+          if (btn.request_location) return Keyboard.requestLocation(btn.text);
+          return btn.text;
+        }),
+      ),
     );
     if (markup.resize_keyboard) keyboard.resized();
     if (markup.one_time_keyboard) keyboard.oneTime();

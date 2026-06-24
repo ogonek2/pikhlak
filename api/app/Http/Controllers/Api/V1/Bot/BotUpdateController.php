@@ -4,13 +4,13 @@ namespace App\Http\Controllers\Api\V1\Bot;
 
 use App\Http\Controllers\Api\ApiController;
 use App\Models\Bot;
-use App\Services\Bot\BotDispatcher;
+use App\Services\Bot\BotDispatchRouter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class BotUpdateController extends ApiController
 {
-    public function __construct(private readonly BotDispatcher $dispatcher) {}
+    public function __construct(private readonly BotDispatchRouter $router) {}
 
     public function store(Request $request): JsonResponse
     {
@@ -25,7 +25,7 @@ class BotUpdateController extends ApiController
         return $this->success([
             'update_log_id' => 1,
             'state_version' => 1,
-            'actions' => $this->dispatcher->dispatch($bot, $update),
+            'actions' => $this->router->dispatch($bot, $update),
             'bot_uuid' => $bot->uuid,
         ]);
     }

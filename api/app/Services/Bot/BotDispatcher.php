@@ -24,6 +24,7 @@ class BotDispatcher
         private readonly OperatorRequestService $operators,
         private readonly ReferralTrackingService $referrals,
         private readonly BotMessageIntentService $intents,
+        private readonly RentCalculatorBotFlow $rentCalculator,
     ) {}
 
     public function dispatch(Bot $bot, array $update): array
@@ -69,6 +70,16 @@ class BotDispatcher
         }
 
         if ($callback && $text === 'calculator') {
+            if ($chat) {
+                $flowActions = $this->rentCalculator->handle($bot, $chat, 'калькулятор', true);
+                if ($flowActions !== null) {
+                    return array_merge(
+                        [['type' => 'answer_callback', 'callback_query_id' => (string) $callback['id']]],
+                        $flowActions
+                    );
+                }
+            }
+
             return $this->messages->buildActions($bot, $update);
         }
 
@@ -102,6 +113,13 @@ class BotDispatcher
         }
 
         try {
+            if ($chat) {
+                $calcActions = $this->rentCalculator->handle($bot, $chat, $userText);
+                if ($calcActions !== null && $calcActions !== []) {
+                    return $calcActions;
+                }
+            }
+
             $intentActions = $this->intents->resolve($bot, $chat, $userText);
             if ($intentActions !== null && $intentActions !== []) {
                 return $intentActions;

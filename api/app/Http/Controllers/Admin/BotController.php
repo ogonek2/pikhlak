@@ -3,19 +3,21 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Bot;
 use App\Models\Project;
+use App\Services\Bot\BotRegistry;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class BotController extends Controller
 {
+    public function __construct(private readonly BotRegistry $bots) {}
+
     public function show(Request $request): View
     {
         /** @var Project $project */
         $project = $request->attributes->get('project');
-        $bot = Bot::query()->where('project_id', $project->id)->firstOrFail();
+        $bot = $this->bots->warming($project);
 
         return view('admin.bot.show', compact('bot', 'project'));
     }
@@ -24,7 +26,7 @@ class BotController extends Controller
     {
         /** @var Project $project */
         $project = $request->attributes->get('project');
-        $bot = Bot::query()->where('project_id', $project->id)->firstOrFail();
+        $bot = $this->bots->warming($project);
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],

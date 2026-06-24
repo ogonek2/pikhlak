@@ -15,6 +15,7 @@ class Bot extends Model
         'uuid',
         'project_id',
         'name',
+        'type',
         'telegram_token',
         'webhook_secret',
         'api_key_hash',
@@ -36,5 +37,15 @@ class Bot extends Model
     public function project(): BelongsTo
     {
         return $this->belongsTo(Project::class);
+    }
+
+    public function isWarming(): bool
+    {
+        return $this->type === 'warming';
+    }
+
+    public function isClient(): bool
+    {
+        return $this->type === 'client';
     }
 }

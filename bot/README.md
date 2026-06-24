@@ -1,11 +1,13 @@
-# Pikhlak Telegram Bot
+# Pikhlak Telegram Bot (прогрев лидов)
 
 Lightweight transport: Telegram ↔ Laravel API (headless).
+
+> Клиентский бот — отдельный проект: [`../client-bot/`](../client-bot/)
 
 ## Flow
 
 ```
-Telegram → grammY (this service) → POST /api/v1/bot/updates → Laravel
+Telegram → grammY (bot/) → POST /api/v1/bot/updates → Laravel BotDispatcher
 Laravel → { actions: [...] } → grammY executor → Telegram
 ```
 
@@ -14,36 +16,23 @@ Laravel → { actions: [...] } → grammY executor → Telegram
 ```bash
 cd bot
 npm install
-cp .env.example .env   # fill TELEGRAM_BOT_TOKEN, BOT_UUID, secrets
+cp .env.example .env   # TELEGRAM_BOT_TOKEN, BOT_UUID (warming), secrets
 ```
 
-`BOT_UUID` — from `php artisan db:seed` output or `bots` table.
+`BOT_UUID` — из таблицы `bots` where `type=warming`.
 
 ## Run (dev)
 
-**Terminal 1** — Laravel API:
-
 ```bash
-cd api
-php artisan serve
+cd api && php artisan serve
+cd bot && npm run dev
 ```
-
-**Terminal 2** — Bot:
-
-```bash
-cd bot
-npm run dev
-```
-
-## Production
-
-Use webhook on Laravel or bot service with public HTTPS URL. For local dev — **long polling** (`npm start`).
 
 ## Env
 
 | Variable | Description |
 |----------|-------------|
-| `TELEGRAM_BOT_TOKEN` | From @BotFather |
+| `TELEGRAM_BOT_TOKEN` | From @BotFather (warming bot) |
 | `LARAVEL_API_URL` | e.g. `http://127.0.0.1:8000` |
-| `BOT_UUID` | UUID from `bots` table |
+| `BOT_UUID` | UUID warming bot from `bots` table |
 | `PIKHLAK_BOT_HMAC_SECRET` | Same as in `api/.env` |

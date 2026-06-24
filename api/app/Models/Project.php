@@ -34,6 +34,16 @@ class Project extends Model
         return $this->hasMany(Bot::class);
     }
 
+    public function rentalClients(): HasMany
+    {
+        return $this->hasMany(RentalClient::class);
+    }
+
+    public function trafficChannels(): HasMany
+    {
+        return $this->hasMany(TrafficChannel::class);
+    }
+
     public function leadStatuses(): HasMany
     {
         return $this->hasMany(LeadStatus::class);
